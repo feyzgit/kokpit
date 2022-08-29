@@ -1,1 +1,1 @@
-# kokpit
+# kokpit ve logo
