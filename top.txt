@@ -1,0 +1,138 @@
+*&---------------------------------------------------------------------*
+*& Include          ZFI_020_P04_T01
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+* Tables                                                               *
+*----------------------------------------------------------------------*
+TABLES: sscrfields.
+
+*----------------------------------------------------------------------*
+* Data Definition  *---------------------------------------------------*
+*----------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+* Type-pools
+*----------------------------------------------------------------------*
+TYPE-POOLS: slis.
+
+*----------------------------------------------------------------------*
+* Types
+*----------------------------------------------------------------------*
+TYPES: BEGIN OF cntl_simple_event,
+         eventid    TYPE i,
+         appl_event TYPE c,
+       END OF cntl_simple_event.
+
+TYPES: cntl_simple_events TYPE TABLE OF cntl_simple_event.
+
+
+
+*----------------------------------------------------------------------*
+* Includes
+*----------------------------------------------------------------------*
+INCLUDE <icon>.
+
+*----------------------------------------------------------------------*
+* Field-Symbols
+*----------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+* Variables
+*----------------------------------------------------------------------*
+DATA:   d_ok,
+        gv_count   TYPE i,
+        gv_repname LIKE sy-repid,
+        gv_url     TYPE char1024.
+
+*----------------------------------------------------------------------*
+* Constants
+*----------------------------------------------------------------------*
+
+
+*----------------------------------------------------------------------*
+* Structures
+*----------------------------------------------------------------------*
+
+DATA : gs_event_tab_line TYPE cntl_simple_event.
+
+*----------------------------------------------------------------------*
+* Internal Tables
+*----------------------------------------------------------------------*
+
+DATA : gt_html_rapor  TYPE TABLE OF w3_html.
+DATA : gt_html_menu   TYPE TABLE OF w3_html.
+DATA : gt_event_tab   TYPE cntl_simple_events.
+
+*----------------------------------------------------------------------*
+* Ranges
+*----------------------------------------------------------------------*
+
+
+*----------------------------------------------------------------------*
+* Class-DEFINITION
+*----------------------------------------------------------------------*
+CLASS cl_event_handler DEFINITION.
+
+  PUBLIC SECTION.
+    METHODS: sapevent FOR EVENT sapevent OF cl_gui_html_viewer
+      IMPORTING action
+                  frame
+                  getdata
+                  postdata
+                  query_table.
+
+ENDCLASS.                    "cl_event_handler DEFINITION
+*----------------------------------------------------------------------*
+* Class-implement
+*----------------------------------------------------------------------*
+CLASS cl_event_handler IMPLEMENTATION.
+
+  METHOD sapevent.
+    PERFORM sapevent USING action frame getdata postdata query_table.
+  ENDMETHOD.                    "on_sapevent
+
+ENDCLASS.                    "cl_Event_handler IMPLEMENTATION
+
+
+*----------------------------------------------------------------------*
+* Referance
+*----------------------------------------------------------------------*
+DATA : go_customcont TYPE REF TO cl_gui_custom_container,
+       go_splitter   TYPE REF TO cl_gui_splitter_container,
+       go_cont_left  TYPE REF TO cl_gui_container,
+       go_cont_right TYPE REF TO cl_gui_container,
+       go_html_rapor TYPE REF TO cl_gui_html_viewer,
+       go_html_menu  TYPE REF TO cl_gui_html_viewer,
+       go_event_hnd  TYPE REF TO cl_event_handler,
+       go_event_hnd1 TYPE REF TO cl_event_handler. "-oerdem-*
+
+DATA: BEGIN OF lt_sirket OCCURS 0,
+        bukrs TYPE bukrs,
+        butxt TYPE butxt,
+      END OF lt_sirket.
+DATA: BEGIN OF lt_sirket_check OCCURS 0,
+        bukrs TYPE bukrs,
+      END OF lt_sirket_check.
+
+DATA: BEGIN OF lt_check OCCURS 0,
+        bukrs TYPE bukrs,
+        check TYPE flag,
+      END OF lt_check.
+DATA: lv_string1(255),
+      lv_string2(255),
+      lv_string3(255),
+      lv_string4(255) TYPE c.
+
+CONSTANTS: gc_word TYPE string VALUE 'CM_'.
+
+DATA gv_bukrs TYPE bukrs.
+*----------------------------------------------------------------------*
+* Macros
+*----------------------------------------------------------------------*
+DEFINE add_rapor.
+  append &1 to gt_html_rapor.
+END-OF-DEFINITION.
+DEFINE add_menu.
+  append &1 to gt_html_menu.
+END-OF-DEFINITION.

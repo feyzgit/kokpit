@@ -1,0 +1,33 @@
+*&---------------------------------------------------------------------*
+*& Include          ZFI_020_P04_S01
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+* SELECTION - SCREEN
+*----------------------------------------------------------------------*
+*SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-s01.
+*SELECTION-SCREEN END OF BLOCK b1.
+
+*----------------------------------------------------------------------*
+* Initialization
+*----------------------------------------------------------------------*
+INITIALIZATION.
+  PERFORM initialization.
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+
+  SET PF-STATUS 'STANDARD'.
+  SET TITLEBAR 'TITLE'.
+
+  PERFORM show_pic.
+
+  IF go_html_menu IS NOT BOUND OR
+   go_html_rapor IS NOT BOUND.
+    PERFORM init_screen_0100.
+    PERFORM create_html.
+    PERFORM show_page.
+  ENDIF.
+
+ENDMODULE.                 " STATUS_0100  OUTPUT

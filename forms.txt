@@ -1,0 +1,1246 @@
+*&---------------------------------------------------------------------*
+*& Include          ZFI_020_P04_F01
+*&---------------------------------------------------------------------*
+
+*&---------------------------------------------------------------------*
+*&      Form  INITIALIZATION
+*&---------------------------------------------------------------------*
+FORM initialization .
+  CLEAR: d_ok.
+*  PERFORM check_authority.
+ENDFORM.                    " INITIALIZATION
+
+
+*&---------------------------------------------------------------------*
+*&      Form  CHECK_DATA_CHANGED
+*&---------------------------------------------------------------------*
+FORM check_data_changed .
+
+  DATA : lo_grid  TYPE REF TO cl_gui_alv_grid,
+         lv_valid .
+
+  CALL FUNCTION 'GET_GLOBALS_FROM_SLVC_FULLSCR'
+    IMPORTING
+      e_grid = lo_grid.
+
+  CALL METHOD lo_grid->check_changed_data
+    IMPORTING
+      e_valid = lv_valid.
+
+ENDFORM.                    " CHECK_DATA_CHANGED
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+
+ENDMODULE.                 " USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*&      Module  EXIT_COMMAND  INPUT
+*&---------------------------------------------------------------------*
+MODULE exit_command INPUT.
+
+  CASE sy-ucomm.
+    WHEN '&F03' OR '&F12'.
+      LEAVE TO SCREEN 0.
+    WHEN '&F15'.
+      LEAVE PROGRAM.
+  ENDCASE.
+
+ENDMODULE.                 " EXIT_COMMAND  INPUT
+*&---------------------------------------------------------------------*
+*&      Form  INIT_SCREEN_0100
+*&---------------------------------------------------------------------*
+FORM init_screen_0100 .
+
+  IF go_customcont IS NOT INITIAL.
+
+    CALL METHOD go_customcont->free
+      EXCEPTIONS
+        cntl_error        = 1
+        cntl_system_error = 2
+        OTHERS            = 3.
+
+    CLEAR go_customcont.
+    FREE go_customcont.
+
+  ENDIF.
+
+  IF go_html_rapor IS NOT INITIAL.
+
+    CALL METHOD go_html_rapor->free
+      EXCEPTIONS
+        cntl_error        = 1
+        cntl_system_error = 2
+        OTHERS            = 3.
+
+    CLEAR go_html_rapor.
+    FREE go_html_rapor.
+
+  ENDIF.
+
+  IF go_html_menu IS NOT INITIAL.
+
+    CALL METHOD go_html_menu->free
+      EXCEPTIONS
+        cntl_error        = 1
+        cntl_system_error = 2
+        OTHERS            = 3.
+
+    CLEAR go_html_menu.
+    FREE go_html_menu.
+
+  ENDIF.
+
+  IF go_customcont IS NOT BOUND.
+    CREATE OBJECT go_customcont
+      EXPORTING
+        container_name              = 'CONT_MAIN'
+        repid                       = sy-repid
+        dynnr                       = '0100'
+      EXCEPTIONS
+        cntl_error                  = 1
+        cntl_system_error           = 2
+        create_error                = 3
+        lifetime_error              = 4
+        lifetime_dynpro_dynpro_link = 5
+        OTHERS                      = 6.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                 WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+
+    CREATE OBJECT go_splitter
+      EXPORTING
+        parent            = go_customcont
+        rows              = 1
+        columns           = 2
+      EXCEPTIONS
+        cntl_error        = 1
+        cntl_system_error = 2
+        OTHERS            = 3.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                 WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+
+    go_splitter->set_column_width( id    = 1
+                                   width = 30 ).
+    go_splitter->set_column_sash( id    = 1
+                                  type  = 0
+                                  value = 0 ).
+
+
+    CALL METHOD go_splitter->get_container
+      EXPORTING
+        row       = 1
+        column    = 1
+      RECEIVING
+        container = go_cont_left.
+
+    CALL METHOD go_splitter->get_container
+      EXPORTING
+        row       = 1
+        column    = 2
+      RECEIVING
+        container = go_cont_right.
+
+  ENDIF.
+
+  IF go_html_rapor IS NOT BOUND.
+    CREATE OBJECT go_html_rapor
+      EXPORTING
+        parent             = go_cont_right
+      EXCEPTIONS
+        cntl_error         = 1
+        cntl_install_error = 2
+        dp_install_error   = 3
+        dp_error           = 4
+        OTHERS             = 5.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                 WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+
+  ENDIF.
+
+  IF go_html_menu IS NOT BOUND.
+    CREATE OBJECT go_html_menu
+      EXPORTING
+        parent             = go_cont_left
+      EXCEPTIONS
+        cntl_error         = 1
+        cntl_install_error = 2
+        dp_install_error   = 3
+        dp_error           = 4
+        OTHERS             = 5.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                 WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+
+  ENDIF.
+
+
+ENDFORM.                    " INIT_SCREEN_0100
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_HTML
+*&---------------------------------------------------------------------*
+FORM create_html.
+
+  CLEAR : gt_html_rapor,gt_html_menu.
+
+  PERFORM create_html_rapor USING gv_bukrs.
+  PERFORM create_html_menu.
+
+ENDFORM.                    " CREATE_HTML
+*&---------------------------------------------------------------------*
+*&      Form  SHOW_PAGE
+*&---------------------------------------------------------------------*
+FORM show_page .
+
+  DATA: l_merge_table TYPE swww_t_merge_table,
+        l_merge_item  TYPE swww_t_merge_item.
+
+  CALL METHOD go_html_rapor->load_mime_object
+    EXPORTING
+      object_id  = 'ZJSAPI.JS'
+      object_url = 'JSAPI.JS'
+    EXCEPTIONS
+      OTHERS     = 4.
+  CALL METHOD go_html_rapor->load_mime_object
+    EXPORTING
+      object_id  = 'ZJSCONTENT.JS'
+      object_url = 'JSCONTENT.JS'
+    EXCEPTIONS
+      OTHERS     = 4.
+  CALL METHOD go_html_rapor->load_mime_object
+    EXPORTING
+      object_id  = 'ZSTYLE.CSS'
+      object_url = 'STYLE.CSS'
+    EXCEPTIONS
+      OTHERS     = 4.
+
+  CLEAR: l_merge_table, l_merge_item.
+  l_merge_item-name = '<!MYDATA!>'. " Tag to be replaced
+  l_merge_item-html = gt_html_rapor.
+  l_merge_item-command = ' '. " blank means replace tag line
+  APPEND l_merge_item TO l_merge_table.
+
+  CALL METHOD go_html_rapor->load_html_document
+    EXPORTING
+      document_id            = 'ZTEST1'
+    IMPORTING
+      assigned_url           = gv_url
+    CHANGING
+      merge_table            = l_merge_table
+*     iscontentchanged       =
+    EXCEPTIONS
+      document_not_found     = 1
+      dp_error_general       = 2
+      dp_invalid_parameter   = 3
+      html_syntax_notcorrect = 4
+      OTHERS                 = 5.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+               WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+  CALL METHOD go_html_rapor->show_url
+    EXPORTING
+      url                    = gv_url
+*     frame                  =
+*     in_place               = ' X'
+    EXCEPTIONS
+      cntl_error             = 1
+      cnht_error_not_allowed = 2
+      cnht_error_parameter   = 3
+      dp_error_general       = 4
+      OTHERS                 = 5.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+               WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+  go_html_rapor->set_ui_flag( cl_gui_html_viewer=>uiflag_no3dborder ).
+
+**********************************************************************
+**********************************************************************
+
+  CALL METHOD go_html_menu->load_mime_object
+    EXPORTING
+      object_id  = 'ZJSAPI.JS'
+      object_url = 'JSAPI.JS'
+    EXCEPTIONS
+      OTHERS     = 4.
+  CALL METHOD go_html_menu->load_mime_object
+    EXPORTING
+      object_id  = 'ZJSCONTENT.JS'
+      object_url = 'JSCONTENT.JS'
+    EXCEPTIONS
+      OTHERS     = 4.
+  CALL METHOD go_html_menu->load_mime_object
+    EXPORTING
+      object_id  = 'ZSTYLE.CSS'
+      object_url = 'STYLE.CSS'
+    EXCEPTIONS
+      OTHERS     = 4.
+
+  CLEAR: l_merge_table, l_merge_item.
+  l_merge_item-name = '<!MYDATA!>'. " Tag to be replaced
+  l_merge_item-html = gt_html_menu.
+  l_merge_item-command = ' '. " blank means replace tag line
+  APPEND l_merge_item TO l_merge_table.
+
+  CALL METHOD go_html_menu->load_html_document
+    EXPORTING
+      document_id            = 'ZTEST1'
+    IMPORTING
+      assigned_url           = gv_url
+    CHANGING
+      merge_table            = l_merge_table
+    EXCEPTIONS
+      document_not_found     = 1
+      dp_error_general       = 2
+      dp_invalid_parameter   = 3
+      html_syntax_notcorrect = 4
+      OTHERS                 = 5.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+               WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+  CLEAR : gs_event_tab_line, gt_event_tab.
+  gs_event_tab_line-eventid    = go_html_menu->m_id_sapevent.
+  gs_event_tab_line-appl_event = 'X'.
+  APPEND gs_event_tab_line TO gt_event_tab.
+
+  CALL METHOD go_html_menu->set_registered_events
+    EXPORTING
+      events = gt_event_tab.
+
+  CREATE OBJECT go_event_hnd.
+
+  SET HANDLER go_event_hnd->sapevent FOR go_html_menu.
+
+*-oerdem-*
+  CALL METHOD go_html_rapor->set_registered_events
+    EXPORTING
+      events = gt_event_tab.
+  CREATE OBJECT go_event_hnd1.
+  SET HANDLER go_event_hnd1->sapevent FOR go_html_rapor.
+
+*-oerdem-*
+
+  CALL METHOD go_html_menu->show_url
+    EXPORTING
+      url                    = gv_url
+*     frame                  =
+*     in_place               = ' X'
+    EXCEPTIONS
+      cntl_error             = 1
+      cnht_error_not_allowed = 2
+      cnht_error_parameter   = 3
+      dp_error_general       = 4
+      OTHERS                 = 5.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+               WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+  go_html_menu->set_ui_flag( cl_gui_html_viewer=>uiflag_no3dborder ).
+
+ENDFORM.                    " SHOW_PAGE
+*&---------------------------------------------------------------------*
+*&      Form  SAPEVENT
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+*      -->P_ACTION  text
+*      -->P_FRAME  text
+*      -->P_GETDATA  text
+*      -->P_POSTDATA  text
+*      -->P_QUERY_TABLE  text
+*----------------------------------------------------------------------*
+FORM sapevent  USING    p_action
+                        p_frame
+                        p_getdata
+                        p_postdata    TYPE cnht_post_data_tab
+                        p_query_table TYPE cnht_query_table.
+
+  DATA: l_f  TYPE syucomm,
+        l_rc TYPE i.
+
+  CASE p_action.
+    WHEN 'MCREATE'. "Masraf
+      CALL TRANSACTION 'ZFI020_09'.
+    WHEN 'MCHANGE'.
+      CALL TRANSACTION 'ZFI020_01'.
+    WHEN 'MDISPLAY'.
+      CALL TRANSACTION 'ZFI020_02'.
+
+    WHEN 'SCREATE'. "Seyahat
+      CALL TRANSACTION 'ZFI020_03'.
+    WHEN 'SCHANGE'.
+      CALL TRANSACTION 'ZFI020_04'.
+    WHEN 'SDISPLAY'.
+      CALL TRANSACTION 'ZFI020_05'.
+
+    WHEN 'ACREATE'.  "Avans
+      CALL TRANSACTION 'ZFI020_06'.
+    WHEN 'ACHANGE'.
+      CALL TRANSACTION 'ZFI020_07'.
+    WHEN 'ADISPLAY'.
+      CALL TRANSACTION 'ZFI020_08'.
+
+    WHEN 'CUST1'. " Uyarlamalar
+      CALL TRANSACTION 'ZFI020_10'.
+    WHEN 'CUST2'.
+      CALL TRANSACTION 'ZFI020_11'.
+    WHEN 'CUST3'.
+      CALL TRANSACTION 'ZFI020_12'.
+
+  ENDCASE.
+
+  CLEAR p_action.
+
+ENDFORM.                    " SAPEVENT
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_HTML_RAPOR
+*&---------------------------------------------------------------------*
+FORM create_html_rapor USING p_bukrs TYPE bukrs.
+
+
+  CLEAR: lv_string1,
+         lv_string2,
+         lv_string3,
+         lv_string4.
+
+  IF sy-langu EQ 'T'.
+    add_rapor : '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"' ,
+                '  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">',
+                '<html>' ,
+                '<head>' ,
+                '<link rel="stylesheet" type="text/css" href= STYLE.CSS />',
+                '<script src= JSAPI.JS ></script>' ,
+                '<script src= JSCONTENT.JS ></script>'  ,
+*-oerdem-*
+                '<script type="text/javascript"> function onclick1(objid) { ',
+                ' location.href="SAPEVENT:".concat(objid) ; ' ,
+                '  } ;</script>' ,
+*-oerdem-*
+                '<script type="text/javascript" >'  ,
+                ' var wrapper;',
+                ' var options1;',
+                ' var formatter;',
+                ' var title = ''Anlık Bakiye Grafiği'' ;',
+                ' google.setOnLoadCallback(drawChart);'   ,
+                ' data = new google.visualization.DataTable();' ,
+                ' data2 = new google.visualization.DataTable();' .
+  ELSEIF sy-langu EQ 'E'.
+    add_rapor : '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"' ,
+                '  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">',
+                '<html>' ,
+                '<head>' ,
+                '<link rel="stylesheet" type="text/css" href= STYLE.CSS />',
+                '<script src= JSAPI.JS ></script>' ,
+                '<script src= JSCONTENT.JS ></script>'  ,
+                '<script type="text/javascript" >'  ,
+                ' var wrapper;',
+                ' var options1;',
+                ' var formatter;',
+                ' var title = ''Bank Statement Report '' ;',
+                ' google.setOnLoadCallback(drawChart);'   ,
+                ' data = new google.visualization.DataTable();' ,
+                ' data2 = new google.visualization.DataTable();' .
+  ENDIF.
+
+  CHECK p_bukrs IS NOT INITIAL.
+  PERFORM get_html_data USING p_bukrs.
+
+*  add_rapor:        'view1 = new google.visualization.DataView(data);',
+*      'options1 = {',
+*      ' title: title,',
+*    '   is3D: true,',
+*      ' height: 400,',
+*    '   width: 800,',
+*    '   backgroundColor: "#DFEBF5",',
+*    '   color: ''#6B7175'',' ,
+*    '   fontName: ''Segoe UI'',' ,
+*    '   bold: true ,' ,
+*    '   chartArea : { left : 40, top : 30, width : ''100%'' , height : ''100%'' },',
+*    '   pieSliceTextStyle : { fontName: ''Segoe UI'',' ,
+*    '                         fontSize: 16    ,  ' ,
+*    '                         bold: true },' ,
+*    '   tooltip : { textStyle : { color: ''#494A8F'',' ,
+*    '                 fontName: ''Segoe UI'',' ,
+*    '                 bold: false } },' ,
+*    '   titleTextStyle : {  color: ''#6B7175'',' ,
+*    '             fontName: ''Segoe UI'',' ,
+*    '             fontSize: 24,' ,
+*    '               bold: true },' ,
+*    '   animation : { duration : 1000, easing : ''out''}',
+*    ' };',
+*
+*    ' formatter = new google.visualization.NumberFormat({suffix: '' TRY'', decimalSymbol: '','' , groupingSymbol: ''.''});',
+*    ' formatter.format(data, 1);',
+*    ' formatter.format(data2, 1);',
+*
+*  '   function drawChart() {',
+*  '     wrapper = new google.visualization.ChartWrapper({',
+*'           chartType: ''PieChart'',',
+*'           dataTable : view1.toDataTable() ,',
+*  '         options: options1,',
+*    '       containerId: ''chart''',
+*  '       });',
+*
+*  '     wrapper.draw();',
+*
+*'       google.visualization.events.addListener(wrapper.getChart(), ''select'', selectHandler); ',
+*'       google.visualization.events.addListener(wrapper.getChart(), ''error'', errorHandler);',
+*'     }',
+*'     function selectHandler(e) {',
+*'       var selection = wrapper.getChart().getSelection()[0];',
+*
+*'       if (selection != null && selection.row != null ) {',
+*'         var index = selection.row;',
+*'         var baslik = view1.getValue(index, 0);',
+*'         var firstChar = baslik.charAt(0); ',
+*'         if ( myIsNaN(firstChar) ) {',
+*
+*'         var value = view1.getValue(index, 2);',
+*
+*'         options1.title = baslik;',
+*'         view1 = new google.visualization.DataView(data2);',
+*'         view1.setRows(view1.getFilteredRows([{ column : 2, value : value }]));',
+*'         view1.setColumns([5,1]);',
+*'         drawChart();',
+*
+*'         }',
+*
+*'       };',
+*
+*
+*'     }',
+*'     function resetButton() {',
+*'     if( options1.title != title ) {  ',
+*'       view1 = new google.visualization.DataView(data);',
+*'       options1.title = title ;',
+*'       drawChart(); ',
+*'     }}',
+*'     function errorHandler(e) {',
+*'       console.log(e);',
+*
+*'     }',
+*'     function myIsNaN(o) {',
+*'       return +o != o;',
+*'       }',
+*        '</script>' ,
+*      '</head>' ,
+*      '<body >' ,
+*      ' <div class="report">',
+*      '   <ul>',
+*      '     <li>',
+*      '       <button class="report-buttons button button1" onclick="resetButton()" >Sıfırla</button>',
+*      '     </li>',
+*      '     <li>',
+*      '       <div id="chart" class="chart " ></div>',
+*      '     </li>',
+*      '   </ul>',
+*      '  </div>',
+*      '</body>' ,
+*      '</html>'.
+
+  IF sy-langu EQ 'T'.
+    add_rapor:        'view1 = new google.visualization.DataView(data);',
+        'options1 = {',
+        ' title: title,',
+      '   is3D: true,',
+        ' height: 400,',
+      '   width: 800,',
+      '   backgroundColor: "#DFEBF5",',
+      '   color: ''#6B7175'',' ,
+      '   fontName: ''Segoe UI'',' ,
+      '   bold: true ,' ,
+      '   chartArea : { left : 40, top : 30, width : ''100%'' , height : ''100%'' },',
+      '   pieSliceTextStyle : { fontName: ''Segoe UI'',' ,
+      '                         fontSize: 16    ,  ' ,
+      '                         bold: true },' ,
+      '   tooltip : { textStyle : { color: ''#494A8F'',' ,
+      '                 fontName: ''Segoe UI'',' ,
+      '                 bold: false } },' ,
+      '   titleTextStyle : {  color: ''#6B7175'',' ,
+      '             fontName: ''Segoe UI'',' ,
+      '             fontSize: 24,' ,
+      '               bold: true },' ,
+      '   animation : { duration : 1000, easing : ''out''}',
+      ' };',
+
+      ' formatter = new google.visualization.NumberFormat({suffix: '' TRY'', decimalSymbol: '','' , groupingSymbol: ''.''});',
+      ' formatter.format(data, 1);',
+      ' formatter.format(data2, 1);',
+
+    '   function drawChart() {',
+    '     wrapper = new google.visualization.ChartWrapper({',
+  '           chartType: ''PieChart'',',
+  '           dataTable : view1.toDataTable() ,',
+    '         options: options1,',
+      '       containerId: ''chart''',
+    '       });',
+
+    '     wrapper.draw();',
+
+  '       google.visualization.events.addListener(wrapper.getChart(), ''select'', selectHandler); ',
+  '       google.visualization.events.addListener(wrapper.getChart(), ''error'', errorHandler);',
+  '     }',
+  '     function selectHandler(e) {',
+  '       var selection = wrapper.getChart().getSelection()[0];',
+
+  '       if (selection != null && selection.row != null ) {',
+  '         var index = selection.row;',
+  '         var baslik = view1.getValue(index, 0);',
+  '         var firstChar = baslik.charAt(0); ',
+  '         if ( myIsNaN(firstChar) ) {',
+
+  '         var value = view1.getValue(index, 2);',
+
+  '         options1.title = baslik;',
+  '         view1 = new google.visualization.DataView(data2);',
+  '         view1.setRows(view1.getFilteredRows([{ column : 2, value : value }]));',
+  '         view1.setColumns([5,1]);',
+  '         drawChart();',
+
+  '         }',
+
+  '       };',
+
+
+  '     }',
+  '     function resetButton() {',
+  '     if( options1.title != title ) {  ',
+  '       view1 = new google.visualization.DataView(data);',
+  '       options1.title = title ;',
+  '       drawChart(); ',
+  '     }}',
+  '     function errorHandler(e) {',
+  '       console.log(e);',
+
+  '     }',
+  '     function myIsNaN(o) {',
+  '       return +o != o;',
+  '       }',
+          '</script>' ,
+        '</head>' ,
+        '<body >' ,
+        ' <div class="report">',
+        '   <ul>',
+        '     <li>',
+        '<button id="CM_3000"  class="report-buttons button button1" onclick="resetButton()"> <font size="2"> <strong> Grafiği </br> Sıfırla </strong> </font> </button>'.
+    LOOP AT lt_sirket INTO DATA(ls_sirket).
+
+      lv_string1 = '<button id="'.
+      CONCATENATE lv_string1 gc_word ls_sirket-bukrs INTO lv_string1.
+      lv_string2 = '" class="report-buttons button button1" onclick="onclick1(this.id)"; >'.
+      CONCATENATE lv_string1 lv_string2 INTO lv_string3.
+      CONCATENATE lv_string3 '<font size="2"> <strong>' ls_sirket-bukrs '</strong> <br/>' '<font size="1">' ls_sirket-butxt '</font>' INTO lv_string3.
+      lv_string4 = ' </font> </button>'.
+      CONCATENATE lv_string3 lv_string4 INTO lv_string4.
+      add_rapor:
+        lv_string4.
+    ENDLOOP.
+    add_rapor:
+'     </li>',
+'     <li>',
+'       <div id="chart" class="chart " ></div>',
+'     </li>',
+'   </ul>',
+'	</div>',
+'</body>' ,
+'</html>'.
+  ELSEIF sy-langu EQ 'E'.
+    add_rapor:        'view1 = new google.visualization.DataView(data);',
+    'options1 = {',
+    ' title: title,',
+  '   is3D: true,',
+    ' height: 400,',
+  '   width: 800,',
+  '   backgroundColor: "#DFEBF5",',
+  '   color: ''#6B7175'',' ,
+  '   fontName: ''Segoe UI'',' ,
+  '   bold: true ,' ,
+  '   chartArea : { left : 40, top : 30, width : ''100%'' , height : ''100%'' },',
+  '   pieSliceTextStyle : { fontName: ''Segoe UI'',' ,
+  '                         fontSize: 16    ,  ' ,
+  '                         bold: true },' ,
+  '   tooltip : { textStyle : { color: ''#494A8F'',' ,
+  '                 fontName: ''Segoe UI'',' ,
+  '                 bold: false } },' ,
+  '   titleTextStyle : {  color: ''#6B7175'',' ,
+  '             fontName: ''Segoe UI'',' ,
+  '             fontSize: 24,' ,
+  '               bold: true },' ,
+  '   animation : { duration : 1000, easing : ''out''}',
+  ' };',
+
+  ' formatter = new google.visualization.NumberFormat({suffix: '' EUR'', decimalSymbol: '','' , groupingSymbol: ''.''});',
+  ' formatter.format(data, 1);',
+  ' formatter.format(data2, 1);',
+
+'   function drawChart() {',
+'     wrapper = new google.visualization.ChartWrapper({',
+'           chartType: ''PieChart'',',
+'           dataTable : view1.toDataTable() ,',
+'         options: options1,',
+  '       containerId: ''chart''',
+'       });',
+
+'     wrapper.draw();',
+
+'       google.visualization.events.addListener(wrapper.getChart(), ''select'', selectHandler); ',
+'       google.visualization.events.addListener(wrapper.getChart(), ''error'', errorHandler);',
+'     }',
+'     function selectHandler(e) {',
+'       var selection = wrapper.getChart().getSelection()[0];',
+
+'       if (selection != null && selection.row != null ) {',
+'         var index = selection.row;',
+'         var baslik = view1.getValue(index, 0);',
+'         var firstChar = baslik.charAt(0); ',
+'         if ( myIsNaN(firstChar) ) {',
+
+'         var value = view1.getValue(index, 2);',
+
+'         options1.title = baslik;',
+'         view1 = new google.visualization.DataView(data2);',
+'         view1.setRows(view1.getFilteredRows([{ column : 2, value : value }]));',
+'         view1.setColumns([5,1]);',
+'         drawChart();',
+
+'         }',
+
+'       };',
+
+
+'     }',
+'     function resetButton() {',
+'     if( options1.title != title ) {  ',
+'       view1 = new google.visualization.DataView(data);',
+'       options1.title = title ;',
+'       drawChart(); ',
+'     }}',
+'     function errorHandler(e) {',
+'       console.log(e);',
+
+'     }',
+'     function myIsNaN(o) {',
+'       return +o != o;',
+'       }',
+      '</script>' ,
+    '</head>' ,
+    '<body >' ,
+    ' <div class="report">',
+    '   <ul>',
+    '     <li>',
+    '       <button class="report-buttons button button1" onclick="resetButton()" >Reset</button>',
+    '     </li>',
+    '     <li>',
+    '       <div id="chart" class="chart " ></div>',
+    '     </li>',
+    '   </ul>',
+    '	</div>',
+    '</body>' ,
+    '</html>'.
+  ENDIF.
+ENDFORM.                    " CREATE_HTML_RAPOR
+*&---------------------------------------------------------------------*
+*&      Form  CREATE_HTML_MENU
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM create_html_menu .
+  DATA : lv_value TYPE i,
+         lv_w3    TYPE w3_html.
+
+  IF sy-langu EQ 'T'.
+    add_menu:  '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"' ,
+             '  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">',
+             '<html>' ,
+             '<head>' ,
+         '<script src= JSAPI.JS ></script>' ,
+         '<script src= JSCONTENT.JS ></script>'  ,
+         '<script type="text/javascript"> function onclick1(objid) { ',
+         ' location.href="SAPEVENT:".concat(objid) ; ' ,
+         '  } ;</script>' ,
+         '<link rel="stylesheet" type="text/css" href= STYLE.CSS >',
+         '</head>' ,
+         '<body>' ,
+       '<div class="menu-buttons-div">',
+       '<h2> Masraf Ekranı </h2>',
+       ' <ul>',
+       '   <li>',
+       '     <button id="MCREATE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Masraf Giriş </button>',
+       '   </li>',
+       '   <li>',
+       '     <button id="MCHANGE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Masraf Değişiklik </button>',
+       '   </li>',
+     '   <li>',
+     '     <button id="MDISPLAY" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Masraf Görüntüleme </button>',
+     '   </li>',
+       ' </ul>',
+       '<h2> Seyahat Ekranı </h2>',
+       ' <ul>',
+       '   <li>',
+       '     <button id="SCREATE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Seyahat Giriş </button>',
+       '   </li>',
+       '   <li>',
+       '     <button id="SCHANGE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Seyahat Değişiklik </button>',
+       '   </li>',
+     '   <li>',
+     '     <button id="SDISPLAY" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Seyahat Görüntüleme </button>',
+     '   </li>',
+       ' </ul>',
+       '<h2> Avans Ekranı </h2>',
+       ' <ul>',
+       '   <li>',
+       '     <button id="ACREATE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Avans Giriş </button>',
+       '   </li>',
+       '   <li>',
+       '     <button id="ACHANGE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Avans Değişiklik </button>',
+       '   </li>',
+     '   <li>',
+     '     <button id="ADISPLAY" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Avans Görüntüleme </button>',
+     '   </li>',
+       ' </ul>',
+       '<h2> Uyarlamalar </h2>',
+       '<ul>',
+       '  <li>',
+       '<button id="CUST1" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Masraf Kategori Uyarlaması </button>',
+       '  </li>',
+       '  <li>',
+       '<button id="CUST2" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Masraf Tipi Uyarlaması </button>',
+       '  </li>',
+       '  <li>',
+       '<button id="CUST3" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Masraf Kategori - Tip Uyarlaması </button>',
+       '  </li>',
+       ' </ul>',
+       '</div>',
+       '</body>' ,
+       '</html>'.
+  ELSEIF sy-langu EQ 'E'.
+    add_menu:  '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"' ,
+         '  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">',
+         '<html>' ,
+         '<head>' ,
+     '<script src= JSAPI.JS ></script>' ,
+     '<script src= JSCONTENT.JS ></script>'  ,
+     '<script type="text/javascript"> function onclick1(objid) { ',
+     ' location.href="SAPEVENT:".concat(objid) ; ' ,
+     '  } ;</script>' ,
+     '<link rel="stylesheet" type="text/css" href= STYLE.CSS >',
+         '</head>' ,
+         '<body>' ,
+       '<div class="menu-buttons-div">',
+       '<h2> Masraf Ekranı </h2>',
+       ' <ul>',
+       '   <li>',
+       '     <button id="MCREATE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Expense Login </button>',
+       '   </li>',
+       '   <li>',
+       '     <button id="MCHANGE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Expense Change </button>',
+       '   </li>',
+     '   <li>',
+     '     <button id="MDISPLAY" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Expense Display </button>',
+     '   </li>',
+       ' </ul>',
+       '<h2> Seyahat Ekranı </h2>',
+       ' <ul>',
+       '   <li>',
+       '     <button id="SCREATE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Trip Login </button>',
+       '   </li>',
+       '   <li>',
+       '     <button id="SCHANGE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Trip Change </button>',
+       '   </li>',
+     '   <li>',
+     '     <button id="SDISPLAY" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Trip Display </button>',
+     '   </li>',
+       ' </ul>',
+       '<h2> Avans Ekranı </h2>',
+       ' <ul>',
+       '   <li>',
+       '     <button id="ACREATE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Advance Login </button>',
+       '   </li>',
+       '   <li>',
+       '     <button id="ACHANGE" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Advance Change </button>',
+       '   </li>',
+     '   <li>',
+     '     <button id="ADISPLAY" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Advance Display </button>',
+     '   </li>',
+       ' </ul>',
+       '<h2> Uyarlamalar </h2>',
+       '<ul>',
+       '  <li>',
+       '<button id="CUST1" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Expense Category Maintenance </button>',
+       '  </li>',
+       '  <li>',
+       '<button id="CUST2" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Expense Type Maintenance </button>',
+       '  </li>',
+       '  <li>',
+       '<button id="CUST3" class="button button1 menu-buttons" onclick="onclick1(this.id)" > Expense Category - Type Maintenance </button>',
+       '  </li>',
+       ' </ul>',
+       '</div>',
+       '</body>' ,
+       '</html>'.
+  ENDIF.
+
+
+ENDFORM.                    " CREATE_HTML_MENU
+*&---------------------------------------------------------------------*
+*&      Form  GET_HTML_DATA
+*&---------------------------------------------------------------------*
+FORM get_html_data USING p_bukrs TYPE bukrs.
+
+
+ENDFORM.                    " GET_HTML_DATA
+*&---------------------------------------------------------------------*
+*&      Form  ADD_RAPOR
+*&---------------------------------------------------------------------*
+FORM add_rapor .
+  CLEAR: lv_string1,
+       lv_string2,
+       lv_string3,
+       lv_string4.
+  IF sy-langu EQ 'T'.
+    add_rapor:        'view1 = new google.visualization.DataView(data);',
+        'options1 = {',
+        ' title: title,',
+      '   is3D: true,',
+        ' height: 400,',
+      '   width: 800,',
+      '   backgroundColor: "#DFEBF5",',
+      '   color: ''#6B7175'',' ,
+      '   fontName: ''Segoe UI'',' ,
+      '   bold: true ,' ,
+      '   chartArea : { left : 40, top : 30, width : ''100%'' , height : ''100%'' },',
+      '   pieSliceTextStyle : { fontName: ''Segoe UI'',' ,
+      '                         fontSize: 16    ,  ' ,
+      '                         bold: true },' ,
+      '   tooltip : { textStyle : { color: ''#494A8F'',' ,
+      '                 fontName: ''Segoe UI'',' ,
+      '                 bold: false } },' ,
+      '   titleTextStyle : {  color: ''#6B7175'',' ,
+      '             fontName: ''Segoe UI'',' ,
+      '             fontSize: 24,' ,
+      '               bold: true },' ,
+      '   animation : { duration : 1000, easing : ''out''}',
+      ' };',
+
+      ' formatter = new google.visualization.NumberFormat({suffix: '' EUR'', decimalSymbol: '','' , groupingSymbol: ''.''});',
+      ' formatter.format(data, 1);',
+      ' formatter.format(data2, 1);',
+
+    '   function drawChart() {',
+    '     wrapper = new google.visualization.ChartWrapper({',
+  '           chartType: ''PieChart'',',
+  '           dataTable : view1.toDataTable() ,',
+    '         options: options1,',
+      '       containerId: ''chart''',
+    '       });',
+
+    '     wrapper.draw();',
+
+  '       google.visualization.events.addListener(wrapper.getChart(), ''select'', selectHandler); ',
+  '       google.visualization.events.addListener(wrapper.getChart(), ''error'', errorHandler);',
+  '     }',
+  '     function selectHandler(e) {',
+  '       var selection = wrapper.getChart().getSelection()[0];',
+
+  '       if (selection != null && selection.row != null ) {',
+  '         var index = selection.row;',
+  '         var baslik = view1.getValue(index, 0);',
+  '         var firstChar = baslik.charAt(0); ',
+  '         if ( myIsNaN(firstChar) ) {',
+
+  '         var value = view1.getValue(index, 2);',
+
+  '         options1.title = baslik;',
+  '         view1 = new google.visualization.DataView(data2);',
+  '         view1.setRows(view1.getFilteredRows([{ column : 2, value : value }]));',
+  '         view1.setColumns([5,1]);',
+  '         drawChart();',
+
+  '         }',
+
+  '       };',
+  '     }',
+  '     function resetButton() {',
+  '     if( options1.title != title ) {  ',
+  '       view1 = new google.visualization.DataView(data);',
+  '       options1.title = title ;',
+  '       drawChart(); ',
+  '     }}',
+  '     function errorHandler(e) {',
+  '       console.log(e);',
+
+  '     }',
+  '     function myIsNaN(o) {',
+  '       return +o != o;',
+  '       }',
+          '</script>' ,
+        '</head>' ,
+        '<body >' ,
+        ' <div class="report">',
+        '   <ul>',
+        '     <li>',
+        '        <button class="report-buttons button button1" onclick="resetButton()" style="color:red;" Grafiği <br/> Sıfırla </button>'.
+
+    LOOP AT lt_sirket INTO DATA(ls_sirket).
+      lv_string1 = `'       <button id="`.
+      CONCATENATE lv_string1 ls_sirket-bukrs INTO lv_string1.
+      lv_string2 = `" class="report-buttons button button1" onclick="onclick1(this.id)" >`.
+      CONCATENATE lv_string1 lv_string2 INTO lv_string3.
+      CONCATENATE lv_string3 ls_sirket-bukrs INTO lv_string3.
+      lv_string4 = `</button>'`.
+      CONCATENATE lv_string3 lv_string4 INTO lv_string4.
+      add_rapor:
+        lv_string4.
+    ENDLOOP.
+    add_rapor:
+'     </li>',
+'     <li>',
+'       <div id="chart" class="chart " ></div>',
+'     </li>',
+'   </ul>',
+'	</div>',
+'</body>' ,
+'</html>'.
+  ELSEIF sy-langu EQ 'E'.
+    add_rapor:        'view1 = new google.visualization.DataView(data);',
+    'options1 = {',
+    ' title: title,',
+  '   is3D: true,',
+    ' height: 400,',
+  '   width: 800,',
+  '   backgroundColor: "#DFEBF5",',
+  '   color: ''#6B7175'',' ,
+  '   fontName: ''Segoe UI'',' ,
+  '   bold: true ,' ,
+  '   chartArea : { left : 40, top : 30, width : ''100%'' , height : ''100%'' },',
+  '   pieSliceTextStyle : { fontName: ''Segoe UI'',' ,
+  '                         fontSize: 16    ,  ' ,
+  '                         bold: true },' ,
+  '   tooltip : { textStyle : { color: ''#494A8F'',' ,
+  '                 fontName: ''Segoe UI'',' ,
+  '                 bold: false } },' ,
+  '   titleTextStyle : {  color: ''#6B7175'',' ,
+  '             fontName: ''Segoe UI'',' ,
+  '             fontSize: 24,' ,
+  '               bold: true },' ,
+  '   animation : { duration : 1000, easing : ''out''}',
+  ' };',
+
+  ' formatter = new google.visualization.NumberFormat({suffix: '' EUR'', decimalSymbol: '','' , groupingSymbol: ''.''});',
+  ' formatter.format(data, 1);',
+  ' formatter.format(data2, 1);',
+
+'   function drawChart() {',
+'     wrapper = new google.visualization.ChartWrapper({',
+'           chartType: ''PieChart'',',
+'           dataTable : view1.toDataTable() ,',
+'         options: options1,',
+  '       containerId: ''chart''',
+'       });',
+
+'     wrapper.draw();',
+
+'       google.visualization.events.addListener(wrapper.getChart(), ''select'', selectHandler); ',
+'       google.visualization.events.addListener(wrapper.getChart(), ''error'', errorHandler);',
+'     }',
+'     function selectHandler(e) {',
+'       var selection = wrapper.getChart().getSelection()[0];',
+
+'       if (selection != null && selection.row != null ) {',
+'         var index = selection.row;',
+'         var baslik = view1.getValue(index, 0);',
+'         var firstChar = baslik.charAt(0); ',
+'         if ( myIsNaN(firstChar) ) {',
+
+'         var value = view1.getValue(index, 2);',
+
+'         options1.title = baslik;',
+'         view1 = new google.visualization.DataView(data2);',
+'         view1.setRows(view1.getFilteredRows([{ column : 2, value : value }]));',
+'         view1.setColumns([5,1]);',
+'         drawChart();',
+
+'         }',
+
+'       };',
+'     }',
+'     function resetButton() {',
+'     if( options1.title != title ) {  ',
+'       view1 = new google.visualization.DataView(data);',
+'       options1.title = title ;',
+'       drawChart(); ',
+'     }}',
+'     function errorHandler(e) {',
+'       console.log(e);',
+'     }',
+'     function myIsNaN(o) {',
+'       return +o != o;',
+'       }',
+      '</script>' ,
+    '</head>' ,
+    '<body >' ,
+    ' <div class="report">',
+    '   <ul>',
+    '     <li>',
+    '       <button class="report-buttons button button1" onclick="resetButton()" >Reset</button>',
+    '     </li>',
+    '     <li>',
+    '       <div id="chart" class="chart " ></div>',
+    '     </li>',
+    '   </ul>',
+    '	</div>',
+    '</body>' ,
+    '</html>'.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  CHECK_AUTHORITY
+*&---------------------------------------------------------------------*
+FORM check_authority .
+  DATA : lv_msg TYPE char255.
+  REFRESH: lt_sirket_check,
+           lt_sirket.
+  CLEAR: lv_msg.
+  FIELD-SYMBOLS <fs_check> LIKE LINE OF lt_sirket_check.
+
+  SELECT DISTINCT bukrs FROM yfin_eks_t_013
+                        INTO TABLE lt_sirket.
+  SELECT DISTINCT bukrs FROM yfin_eks_t_033
+                    INTO TABLE lt_sirket_check.
+
+  LOOP AT lt_sirket_check ASSIGNING <fs_check>.
+    AUTHORITY-CHECK OBJECT 'YFINEKS'
+    ID 'BUKRS' FIELD <fs_check>-bukrs
+    ID 'ACTIVITY' FIELD '02'.
+    IF sy-subrc IS NOT INITIAL.
+      IF <fs_check> IS ASSIGNED.
+        DELETE lt_sirket_check WHERE bukrs EQ <fs_check>-bukrs.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+  IF lt_sirket_check[] IS NOT INITIAL.
+    SORT lt_sirket ASCENDING.
+    SORT lt_sirket_check ASCENDING.
+    READ TABLE lt_sirket_check INTO gv_bukrs INDEX 1.
+  ELSE.
+    lv_msg = 'Kokpit ekranına giriş yetkiniz yoktur!'.
+    MESSAGE lv_msg TYPE 'S' DISPLAY LIKE 'E'.
+    STOP.
+  ENDIF.
+
+  IF lt_sirket[] IS NOT INITIAL.
+    SELECT bukrs,
+           butxt
+          FROM t001
+          INTO TABLE @DATA(lt_t001)
+          FOR ALL ENTRIES IN @lt_sirket
+          WHERE bukrs = @lt_sirket-bukrs.
+    SORT lt_sirket BY bukrs.
+    IF sy-subrc IS INITIAL.
+      LOOP AT lt_sirket ASSIGNING FIELD-SYMBOL(<fs_sirket>).
+        READ TABLE lt_t001 REFERENCE INTO DATA(lr_t001)
+                           WITH KEY bukrs = <fs_sirket>-bukrs
+                           BINARY SEARCH.
+        IF sy-subrc IS INITIAL.
+          <fs_sirket>-butxt = lr_t001->butxt.
+        ENDIF.
+      ENDLOOP.
+
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+
+FORM show_pic.
+  DATA: docking           TYPE REF TO cl_gui_docking_container,
+        picture_control_1 TYPE REF TO cl_gui_picture,
+        url(256)          TYPE c.
+  DATA: query_table    LIKE w3query OCCURS 1 WITH HEADER LINE,
+        html_table     LIKE w3html OCCURS 1,
+        return_code    LIKE  w3param-ret_code,
+        content_type   LIKE  w3param-cont_type,
+        content_length LIKE  w3param-cont_len,
+        pic_data       LIKE w3mime OCCURS 0,
+        pic_size       TYPE i.
+
+  DATA: repid LIKE sy-repid.
+  repid = sy-repid.
+
+
+  CREATE OBJECT picture_control_1 EXPORTING parent = docking.
+  CHECK sy-subrc = 0.
+
+*  CALL METHOD picture_control_1->set_3d_border
+*    EXPORTING
+*      border = 1.
+  CALL METHOD picture_control_1->set_display_mode
+    EXPORTING
+      display_mode = cl_gui_picture=>display_mode_stretch.
+  CALL METHOD picture_control_1->set_position
+    EXPORTING
+      height = 300
+      left   = 900
+      top    = 50
+      width  = 600.
+*CHANGE POSITION AND SIZE ABOVE***************************
+  IF url IS INITIAL.
+    REFRESH query_table.
+    query_table-name  = '_OBJECT_ID'.
+*CHANGE IMAGE NAME BELOW UPLOADED IN SMW0******************
+
+    query_table-value = 'ZTVF_LOGO'.
+    APPEND query_table.
+
+    CALL FUNCTION 'WWW_GET_MIME_OBJECT'
+      TABLES
+        query_string        = query_table
+        html                = html_table
+        mime                = pic_data
+      CHANGING
+        return_code         = return_code
+        content_type        = content_type
+        content_length      = content_length
+      EXCEPTIONS
+        object_not_found    = 1
+        parameter_not_found = 2
+        OTHERS              = 3.
+    IF sy-subrc <> 0.
+*      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+    CALL FUNCTION 'DP_CREATE_URL'
+      EXPORTING
+        type     = 'image'
+        subtype  = cndp_sap_tab_unknown
+        size     = pic_size
+        lifetime = cndp_lifetime_transaction
+      TABLES
+        data     = pic_data
+      CHANGING
+        url      = url
+      EXCEPTIONS
+        OTHERS   = 1.
+  ENDIF.
+  CALL METHOD picture_control_1->load_picture_from_url
+    EXPORTING
+      url = url.
+*Syntax for URL
+*url = 'file://D:\corp-gbanerji\pickut\cartoon_184.gif'.
+*url = 'http://l.yimg.com/a/i/ww/beta/y3.gif'.
+ENDFORM.                    "show_pic
